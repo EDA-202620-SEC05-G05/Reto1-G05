@@ -1,15 +1,17 @@
 import sys
+from tabulate import tabulate
+from App import logic
 
-default_limit = 1000 
-sys.setrecursionlimit(default_limit*10) 
+default_limit = 1000
+sys.setrecursionlimit(default_limit * 10)
 
 
 def new_logic():
     """
         Se crea una instancia del controlador
     """
-    #TODO: Llamar la función de la lógica donde se crean las estructuras de datos
-    pass
+    control = logic.new_logic()
+    return control
 
 def print_menu():
     print("Bienvenido")
@@ -26,8 +28,42 @@ def load_data(control):
     """
     Carga los datos
     """
-    #TODO: Realizar la carga de datos
-    pass
+    filename = "Data/chocolate_sales/chocolate_sale_100_elementos.csv"
+    result = logic.load_data(control, filename)
+
+    print(f"\nTiempo de carga: {result['time']:.2f} ms")
+    print(f"Total de pedidos cargados: {result['total_orders']}")
+
+    headers = ["Order_ID", "Product", "Country", "Channel",
+               "Order_Date", "Price_per_Box", "Amount"]
+
+    print("\nPedido de menor monto:")
+    print(tabulate([extract_report_fields(result['min_order'])],
+                    headers=headers, tablefmt="fancy_grid"))
+
+    print("\nPedido de mayor monto:")
+    print(tabulate([extract_report_fields(result['max_order'])],
+                    headers=headers, tablefmt="fancy_grid"))
+
+    print("\nPrimeros 5 registros cargados:")
+    rows = [extract_report_fields(o) for o in result['first_five']]
+    print(tabulate(rows, headers=headers, tablefmt="fancy_grid"))
+
+    print("\nÚltimos 5 registros cargados:")
+    rows = [extract_report_fields(o) for o in result['last_five']]
+    print(tabulate(rows, headers=headers, tablefmt="fancy_grid"))
+
+    return result
+
+
+def extract_report_fields(order):
+    """
+    Extrae, en el orden correcto, los campos que se deben reportar
+    de un pedido para las tablas de la Parte 2.
+    """
+    return [order['Order_ID'], order['Product'], order['Country'],
+            order['Channel'], order['Order_Date'],
+            order['Price_per_Box'], order['Amount']]
 
 
 def print_data(control, id):
@@ -115,7 +151,7 @@ def main():
         elif int(inputs) == 5:
             print_req_5(control)
 
-        elif int(inputs) == 5:
+        elif int(inputs) == 6:
             print_req_6(control)
 
         elif int(inputs) == 7:
