@@ -25,7 +25,7 @@ def load_data(catalog, filename):
     """
     start_time = get_time()
 
-    with open(filename, encoding='utf-8') as csv_file:
+    with open(filename, encoding='utf-8-sig') as csv_file:
         input_file = csv.DictReader(csv_file)
         for row in input_file:
             order = format_order(row)
