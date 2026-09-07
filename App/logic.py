@@ -133,12 +133,78 @@ def req_1(catalog):
     pass
 
 
-def req_2(catalog):
+def req_2(catalog, min_price, max_price):
     """
-    Retorna el resultado del requerimiento 2
+    Retorna el resultado del requerimiento 2: filtra pedidos cuyo
+    Price_per_Box está entre min_price y max_price (inclusive).
     """
-    # TODO: Modificar el requerimiento 2
-    pass
+    start_time = get_time()
+ 
+    filtered = lt.new_list()
+    sum_discount = 0.0
+    sum_marketing = 0.0
+    sum_price = 0.0
+ 
+    for i in range(lt.size(catalog['orders'])):
+        order = lt.get_element(catalog['orders'], i)
+        price = order['Price_per_Box']
+        if price == 'Unknown':
+            continue
+        if min_price <= price <= max_price:
+            filtered = lt.add_last(filtered, order)
+            sum_discount += order['Discount_Pct']
+            sum_marketing += order['Marketing_Spend']
+            sum_price += price
+ 
+    total = lt.size(filtered)
+ 
+    avg_discount = sum_discount / total if total > 0 else 0
+    avg_marketing = sum_marketing / total if total > 0 else 0
+    avg_price = sum_price / total if total > 0 else 0
+ 
+    most_recent = None
+    min_amount_order = None
+    max_amount_order = None
+ 
+    for i in range(total):
+        order = lt.get_element(filtered, i)
+ 
+        # Pedido más reciente (mayor Order_Date pero si empatan el que tenga mayor Amount)
+        if most_recent is None:
+            most_recent = order
+        elif (order['Order_Date'] > most_recent['Order_Date'] or
+              (order['Order_Date'] == most_recent['Order_Date'] and
+               order['Amount'] > most_recent['Amount'])):
+            most_recent = order
+ 
+        # Menor y mayor Amount (si empatan se verifica el menor Price_per_Box)
+        if order['Amount'] == 'Unknown':
+            continue
+        if min_amount_order is None:
+            min_amount_order = order
+            max_amount_order = order
+            continue
+        if (order['Amount'] < min_amount_order['Amount'] or
+                (order['Amount'] == min_amount_order['Amount'] and
+                 order['Price_per_Box'] < min_amount_order['Price_per_Box'])):
+            min_amount_order = order
+        if (order['Amount'] > max_amount_order['Amount'] or
+                (order['Amount'] == max_amount_order['Amount'] and
+                 order['Price_per_Box'] < max_amount_order['Price_per_Box'])):
+            max_amount_order = order
+ 
+    end_time = get_time()
+ 
+    return {
+        'time': delta_time(start_time, end_time),
+        'total': total,
+        'avg_discount': avg_discount,
+        'avg_marketing': avg_marketing,
+        'avg_price': avg_price,
+        'most_recent': most_recent,
+        'min_amount_order': min_amount_order,
+        'max_amount_order': max_amount_order,
+    }
 
 
 def req_3(catalog):
@@ -149,12 +215,74 @@ def req_3(catalog):
     pass
 
 
-def req_4(catalog):
+def req_4(catalog, product, country):
     """
-    Retorna el resultado del requerimiento 4
+    Retorna el resultado del requerimiento 4: precio promedio para la
+    combinación Producto-País, y los 2 pedidos de mayor Amount.
     """
-    # TODO: Modificar el requerimiento 4
-    pass
+    start_time = get_time()
+ 
+    filtered = sll.new_list()
+    sum_price = 0.0
+    sum_discount = 0.0
+    sum_marketing = 0.0
+    sum_boxes = 0.0
+ 
+    for i in range(lt.size(catalog['orders'])):
+        order = lt.get_element(catalog['orders'], i)
+        if order['Product'] == product and order['Country'] == country:
+            filtered = sll.add_last(filtered, order)
+            sum_price += order['Price_per_Box']
+            sum_discount += order['Discount_Pct']
+            sum_marketing += order['Marketing_Spend']
+            sum_boxes += order['Boxes_Shipped']
+ 
+    total = sll.size(filtered)
+    avg_price = sum_price / total if total > 0 else 0
+    avg_discount = sum_discount / total if total > 0 else 0
+    avg_marketing = sum_marketing / total if total > 0 else 0
+    avg_boxes = sum_boxes / total if total > 0 else 0
+ 
+    top_1 = None
+    top_2 = None
+ 
+    for i in range(total):
+        order = sll.get_element(filtered, i)
+        if order['Amount'] == 'Unknown':
+            continue
+        if es_mejor_monto(order, top_1):
+            top_2 = top_1
+            top_1 = order
+        elif es_mejor_monto(order, top_2):
+            top_2 = order
+ 
+    end_time = get_time()
+ 
+    return {
+        'time': delta_time(start_time, end_time),
+        'total': total,
+        'avg_price': avg_price,
+        'avg_discount': avg_discount,
+        'avg_marketing': avg_marketing,
+        'avg_boxes': avg_boxes,
+        'top_1': top_1,
+        'top_2': top_2,
+    }
+ 
+ 
+def es_mejor_monto(candidate, current_best):
+    """
+    Retorna True si 'candidate' debe ir antes que 'current_best' según
+    el criterio del requerimiento 4: mayor Amount; empate -> menor
+    Marketing_Spend; empate -> menor Order_ID.
+    """
+    if current_best is None:
+        return True
+    if candidate['Amount'] != current_best['Amount']:
+        return candidate['Amount'] > current_best['Amount']
+    if candidate['Marketing_Spend'] != current_best['Marketing_Spend']:
+        return candidate['Marketing_Spend'] < current_best['Marketing_Spend']
+    return candidate['Order_ID'] < current_best['Order_ID']
 
 
 def req_5(catalog):
