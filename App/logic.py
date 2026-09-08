@@ -338,13 +338,93 @@ def req_2(catalog, min_price, max_price):
     }
 
 
-def req_3(catalog):
-    """
-    Retorna el resultado del requerimiento 3
-    """
-    # TODO: Modificar el requerimiento 3
-    pass
 
+def req_3(catalog, country, channel):
+    """
+    Retorna el resultado del requerimiento 3: promedios para pedidos de un
+    país y canal específicos.
+    """
+    start_time = get_time()
+
+    orders = catalog['orders']
+    total_orders = lt.size(orders)
+
+    count = 0
+    sum_price = 0.0
+    sum_discount = 0.0
+    sum_marketing = 0.0
+    sum_boxes = 0.0
+
+    product_counts = {}
+    year_counts = {}
+
+    for i in range(total_orders):
+        order = lt.get_element(orders, i)
+
+        if order['Country'] == country and order['Channel'] == channel:
+            count += 1
+
+            price = order['Price_per_Box']
+            discount = order['Discount_Pct']
+            marketing = order['Marketing_Spend']
+            boxes = order['Boxes_Shipped']
+            product = order['Product']
+            date = order['Order_Date']
+
+            if price != 'Unknown':
+                sum_price += price
+            if discount != 'Unknown':
+                sum_discount += discount
+            if marketing != 'Unknown':
+                sum_marketing += marketing
+            if boxes != 'Unknown':
+                sum_boxes += boxes
+
+            if product != 'Unknown':
+                product_counts[product] = product_counts.get(product, 0) + 1
+
+            if date != 'Unknown' and len(date) >= 4:
+                year = date[0:4]
+                year_counts[year] = year_counts.get(year, 0) + 1
+
+    end_time = get_time()
+
+    result = {
+        'time': delta_time(start_time, end_time),
+        'total': count
+    }
+
+    if count == 0:
+        result['avg_price'] = 0.0
+        result['avg_discount'] = 0.0
+        result['avg_marketing'] = 0.0
+        result['avg_boxes'] = 0.0
+        result['most_frequent_product'] = 'Unknown'
+        result['year_with_most_orders'] = 'Unknown'
+        return result
+
+    most_frequent_product = 'Unknown'
+    max_prod_count = 0
+    for prod in product_counts:
+        if product_counts[prod] > max_prod_count:
+            max_prod_count = product_counts[prod]
+            most_frequent_product = prod
+
+    year_with_most_orders = 'Unknown'
+    max_year_count = 0
+    for yr in year_counts:
+        if year_counts[yr] > max_year_count:
+            max_year_count = year_counts[yr]
+            year_with_most_orders = yr
+
+    result['avg_price'] = sum_price / count
+    result['avg_discount'] = sum_discount / count
+    result['avg_marketing'] = sum_marketing / count
+    result['avg_boxes'] = sum_boxes / count
+    result['most_frequent_product'] = most_frequent_product
+    result['year_with_most_orders'] = year_with_most_orders
+
+    return result
 
 def req_4(catalog, product, country):
     """
@@ -416,20 +496,209 @@ def es_mejor_monto(candidate, current_best):
     return candidate['Order_ID'] < current_best['Order_ID']
 
 
-def req_5(catalog):
-    """
-    Retorna el resultado del requerimiento 5
-    """
-    # TODO: Modificar el requerimiento 5
-    pass
+def req_5(catalog, filtro, product, fecha_inicial, fecha_final):
+    start_time = get_time()
+    
+    if catalog['orders'].get('first') is None:
+        return None
 
-def req_6(catalog):
-    """
-    Retorna el resultado del requerimiento 6
-    """
-    # TODO: Modificar el requerimiento 6
-    pass
+    count = 0
+    sum_price = 0.0
+    sum_boxes = 0.0
+    sum_marketing = 0.0
+    target_order = None
 
+    current_node = catalog['orders']['first']
+    
+    while current_node is not None:
+        order = current_node['info']
+        o_product = order.get('Product', 'Unknown')
+        o_date = order.get('Order_Date', 'Unknown')
+
+        if o_product == product and o_date != 'Unknown' and fecha_inicial <= o_date <= fecha_final:
+            count += 1
+            
+            price = float(order.get('Price_per_Box', 0)) if order.get('Price_per_Box', 'Unknown') != 'Unknown' else 0.0
+            boxes = float(order.get('Boxes_Shipped', 0)) if order.get('Boxes_Shipped', 'Unknown') != 'Unknown' else 0.0
+            marketing = float(order.get('Marketing_Spend', 0)) if order.get('Marketing_Spend', 'Unknown') != 'Unknown' else 0.0
+            amount = float(order.get('Amount', 0)) if order.get('Amount', 'Unknown') != 'Unknown' else 0.0
+            
+            sum_price += price
+            sum_boxes += boxes
+            sum_marketing += marketing
+
+            if target_order is None:
+                target_order = order
+            else:
+                t_amount = float(target_order.get('Amount', 0)) if target_order.get('Amount', 'Unknown') != 'Unknown' else 0.0
+                t_price = float(target_order.get('Price_per_Box', 0)) if target_order.get('Price_per_Box', 'Unknown') != 'Unknown' else 0.0
+                t_marketing = float(target_order.get('Marketing_Spend', 0)) if target_order.get('Marketing_Spend', 'Unknown') != 'Unknown' else 0.0
+
+                update_target = False
+                
+                if filtro == "MENOR":
+                    if amount < t_amount:
+                        update_target = True
+                    elif amount == t_amount:
+                        if price < t_price:
+                            update_target = True
+                        elif price == t_price and marketing < t_marketing:
+                            update_target = True
+                
+                elif filtro == "MAYOR":
+                    if amount > t_amount:
+                        update_target = True
+                    elif amount == t_amount:
+                        if price < t_price:
+                            update_target = True
+                        elif price == t_price and marketing < t_marketing:
+                            update_target = True
+
+                if update_target:
+                    target_order = order
+
+        current_node = current_node['next']
+
+    end_time = get_time()
+
+    if count == 0:
+        return {
+            'time': delta_time(start_time, end_time),
+            'filtro': filtro,
+            'total_pedidos': 0,
+            'pedido_resultante': 'Unknown',
+            'promedios': {'avg_price': 0.0, 'avg_boxes': 0.0, 'avg_marketing': 0.0}
+        }
+
+    return {
+        'time': delta_time(start_time, end_time),
+        'filtro': filtro,
+        'total_pedidos': count,
+        'pedido_resultante': {
+            'Price_per_Box': target_order.get('Price_per_Box', 'Unknown'),
+            'Boxes_Shipped': target_order.get('Boxes_Shipped', 'Unknown'),
+            'Amount': target_order.get('Amount', 'Unknown'),
+            'Channel': target_order.get('Channel', 'Unknown'),
+            'Order_Date': target_order.get('Order_Date', 'Unknown'),
+            'Marketing_Spend': target_order.get('Marketing_Spend', 'Unknown')
+        },
+        'promedios': {
+            'avg_price': sum_price / count,
+            'avg_boxes': sum_boxes / count,
+            'avg_marketing': sum_marketing / count
+        }
+    }
+
+def req_6(catalog, fecha_inicial, fecha_final):
+    start_time = get_time()
+    
+    if catalog['orders'].get('first') is None:
+        return None
+
+    total_valid_orders = 0
+    channels_data = {}
+
+    current_node = catalog['orders']['first']
+    
+    while current_node is not None:
+        order = current_node['info']
+        o_date = order.get('Order_Date', 'Unknown')
+
+        if o_date != 'Unknown' and fecha_inicial <= o_date <= fecha_final:
+            total_valid_orders += 1
+            channel = order.get('Channel', 'Unknown')
+            
+            amount = float(order.get('Amount', 0)) if order.get('Amount', 'Unknown') != 'Unknown' else 0.0
+            price = float(order.get('Price_per_Box', 0)) if order.get('Price_per_Box', 'Unknown') != 'Unknown' else 0.0
+            marketing = float(order.get('Marketing_Spend', 0)) if order.get('Marketing_Spend', 'Unknown') != 'Unknown' else 0.0
+            
+            if channel not in channels_data:
+                channels_data[channel] = {
+                    'count': 0,
+                    'sum_revenue': 0.0,
+                    'sum_price': 0.0,
+                    'sum_marketing': 0.0,
+                    'max_order': order,
+                    'min_order': order
+                }
+            
+            cd = channels_data[channel]
+            cd['count'] += 1
+            cd['sum_revenue'] += amount
+            cd['sum_price'] += price
+            cd['sum_marketing'] += marketing
+            
+            max_t_amount = float(cd['max_order'].get('Amount', 0)) if cd['max_order'].get('Amount', 'Unknown') != 'Unknown' else 0.0
+            if amount > max_t_amount:
+                cd['max_order'] = order
+                
+            min_t_amount = float(cd['min_order'].get('Amount', 0)) if cd['min_order'].get('Amount', 'Unknown') != 'Unknown' else 0.0
+            if amount < min_t_amount:
+                cd['min_order'] = order
+
+        current_node = current_node['next']
+
+    end_time = get_time()
+
+    if total_valid_orders == 0:
+        return {
+            'time': delta_time(start_time, end_time),
+            'total_valid_orders': 0
+        }
+
+    most_used_channel = None
+    max_count = -1
+    
+    highest_revenue_channel = None
+    max_revenue = -1.0
+
+    channels_report = {}
+
+    for channel, data in channels_data.items():
+        if data['count'] > max_count:
+            max_count = data['count']
+            most_used_channel = channel
+            
+        if data['sum_revenue'] > max_revenue:
+            max_revenue = data['sum_revenue']
+            highest_revenue_channel = channel
+
+        channels_report[channel] = {
+            'avg_price': data['sum_price'] / data['count'],
+            'avg_marketing': data['sum_marketing'] / data['count'],
+            'max_order': {
+                'Order_ID': data['max_order'].get('Order_ID', 'Unknown'),
+                'Product': data['max_order'].get('Product', 'Unknown'),
+                'Country': data['max_order'].get('Country', 'Unknown'),
+                'Order_Date': data['max_order'].get('Order_Date', 'Unknown'),
+                'Boxes_Shipped': data['max_order'].get('Boxes_Shipped', 'Unknown'),
+                'Amount': data['max_order'].get('Amount', 'Unknown')
+            },
+            'min_order': {
+                'Order_ID': data['min_order'].get('Order_ID', 'Unknown'),
+                'Product': data['min_order'].get('Product', 'Unknown'),
+                'Country': data['min_order'].get('Country', 'Unknown'),
+                'Order_Date': data['min_order'].get('Order_Date', 'Unknown'),
+                'Boxes_Shipped': data['min_order'].get('Boxes_Shipped', 'Unknown'),
+                'Amount': data['min_order'].get('Amount', 'Unknown')
+            }
+        }
+
+    return {
+        'time': delta_time(start_time, end_time),
+        'total_pedidos': total_valid_orders,
+        'canal_mas_usado': {
+            'name': most_used_channel,
+            'total_pedidos': channels_data[most_used_channel]['count'],
+            'total_recaudo': channels_data[most_used_channel]['sum_revenue']
+        },
+        'canal_mas_recauda': {
+            'name': highest_revenue_channel,
+            'total_pedidos': channels_data[highest_revenue_channel]['count'],
+            'total_recaudo': channels_data[highest_revenue_channel]['sum_revenue']
+        },
+        'reporte_por_canales': channels_report
+    }
 
 # Funciones para medir tiempos de ejecucion
 
