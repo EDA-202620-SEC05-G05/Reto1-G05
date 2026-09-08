@@ -125,12 +125,143 @@ def get_first_last(orders):
 # Funciones de consulta sobre el catálogo
 
 
-def req_1(catalog):
+def req_1(catalog, product_name):
     """
-    Retorna el resultado del requerimiento 1
+    Retorna el resultado del requerimiento 1: estadisticas promedio de
+    todos los pedidos de un producto dado.
     """
-    # TODO: Modificar el requerimiento 1
-    pass
+    start_time = get_time()
+
+    orders = catalog['orders']
+
+    total = 0
+    sum_price = 0.0
+    min_price = None
+    max_price = None
+    sum_discount = 0.0
+    min_discount = None
+    max_discount = None
+    sum_boxes = 0.0
+    min_boxes = None
+    max_boxes = None
+    sum_marketing = 0.0
+    min_marketing = None
+    max_marketing = None
+    year_counts = {}
+    max_amount_order = None
+    min_amount_order = None
+
+    for i in range(lt.size(orders)):
+        order = lt.get_element(orders, i)
+
+        if order['Product'] != product_name:
+            continue
+
+        total += 1
+
+        price = order['Price_per_Box']
+        discount = order['Discount_Pct']
+        boxes = order['Boxes_Shipped']
+        marketing = order['Marketing_Spend']
+        amount = order['Amount']
+        date = order['Order_Date']
+
+        if price != 'Unknown':
+            sum_price += price
+            if min_price is None or price < min_price:
+                min_price = price
+            if max_price is None or price > max_price:
+                max_price = price
+
+        if discount != 'Unknown':
+            sum_discount += discount
+            if min_discount is None or discount < min_discount:
+                min_discount = discount
+            if max_discount is None or discount > max_discount:
+                max_discount = discount
+
+        if boxes != 'Unknown':
+            sum_boxes += boxes
+            if min_boxes is None or boxes < min_boxes:
+                min_boxes = boxes
+            if max_boxes is None or boxes > max_boxes:
+                max_boxes = boxes
+
+        if marketing != 'Unknown':
+            sum_marketing += marketing
+            if min_marketing is None or marketing < min_marketing:
+                min_marketing = marketing
+            if max_marketing is None or marketing > max_marketing:
+                max_marketing = marketing
+
+        if date != 'Unknown':
+            year = date[0:4]
+            if year in year_counts:
+                year_counts[year] += 1
+            else:
+                year_counts[year] = 1
+
+        if amount != 'Unknown':
+            # Pedido de mayor Amount (empate -> menor Marketing_Spend)
+            if max_amount_order is None:
+                max_amount_order = order
+            elif (amount > max_amount_order['Amount'] or
+                    (amount == max_amount_order['Amount'] and
+                     marketing != 'Unknown' and
+                     max_amount_order['Marketing_Spend'] != 'Unknown' and
+                     marketing < max_amount_order['Marketing_Spend'])):
+                max_amount_order = order
+
+            # Pedido de menor Amount (empate -> menor Marketing_Spend)
+            if min_amount_order is None:
+                min_amount_order = order
+            elif (amount < min_amount_order['Amount'] or
+                    (amount == min_amount_order['Amount'] and
+                     marketing != 'Unknown' and
+                     min_amount_order['Marketing_Spend'] != 'Unknown' and
+                     marketing < min_amount_order['Marketing_Spend'])):
+                min_amount_order = order
+
+    end_time = get_time()
+
+    result = {
+        'time': delta_time(start_time, end_time),
+        'total': total
+    }
+
+    if total == 0:
+        return result
+
+    top_year = None
+    top_year_count = 0
+    for year in year_counts:
+        if year_counts[year] > top_year_count:
+            top_year_count = year_counts[year]
+            top_year = year
+
+    result['avg_price'] = sum_price / total
+    result['min_price'] = min_price
+    result['max_price'] = max_price
+
+    result['avg_discount'] = sum_discount / total
+    result['min_discount'] = min_discount
+    result['max_discount'] = max_discount
+
+    result['avg_boxes'] = sum_boxes / total
+    result['min_boxes'] = min_boxes
+    result['max_boxes'] = max_boxes
+
+    result['avg_marketing'] = sum_marketing / total
+    result['min_marketing'] = min_marketing
+    result['max_marketing'] = max_marketing
+
+    result['top_year'] = top_year
+    result['top_year_count'] = top_year_count
+
+    result['max_amount_order'] = max_amount_order
+    result['min_amount_order'] = min_amount_order
+
+    return result
 
 
 def req_2(catalog, min_price, max_price):
