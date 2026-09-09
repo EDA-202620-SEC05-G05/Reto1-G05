@@ -86,8 +86,50 @@ def print_req_1(control):
     """
         Función que imprime la solución del Requerimiento 1 en consola
     """
-    # TODO: Imprimir el resultado del requerimiento 1
-    pass
+    product_name = input("Ingrese el nombre del producto: ")
+
+    result = logic.req_1(control, product_name)
+
+    print(f"\nTiempo de ejecución: {result['time']:.2f} ms")
+    print(f"Total de pedidos del producto '{product_name}': {result['total']}")
+
+    if result['total'] == 0:
+        print("No se encontraron pedidos para este producto.")
+        return
+
+    stats_headers = ["Característica", "Promedio", "Mínimo", "Máximo"]
+    stats_rows = [
+        ["Price_per_Box", round(result['avg_price'], 2),
+         result['min_price'], result['max_price']],
+        ["Discount_Pct", round(result['avg_discount'], 2),
+         result['min_discount'], result['max_discount']],
+        ["Boxes_Shipped", round(result['avg_boxes'], 2),
+         result['min_boxes'], result['max_boxes']],
+        ["Marketing_Spend", round(result['avg_marketing'], 2),
+         result['min_marketing'], result['max_marketing']],
+    ]
+
+    print("\nEstadísticas del producto:")
+    print(tabulate(stats_rows, headers=stats_headers, tablefmt="fancy_grid"))
+
+    print(f"\nAño con más pedidos: {result['top_year']} "
+          f"({result['top_year_count']} pedidos)")
+
+    order_headers = ["Tipo", "Order_ID", "Country", "Order_Date",
+                      "Price_per_Box", "Amount"]
+
+    max_order = result['max_amount_order']
+    min_order = result['min_amount_order']
+
+    order_rows = [
+        ["Mayor Amount", max_order['Order_ID'], max_order['Country'],
+         max_order['Order_Date'], max_order['Price_per_Box'], max_order['Amount']],
+        ["Menor Amount", min_order['Order_ID'], min_order['Country'],
+         min_order['Order_Date'], min_order['Price_per_Box'], min_order['Amount']],
+    ]
+
+    print("\nPedidos de mayor y menor Amount:")
+    print(tabulate(order_rows, headers=order_headers, tablefmt="fancy_grid"))
 
 
 def print_req_2(control):
