@@ -70,8 +70,19 @@ def print_data(control, id):
     """
         Función que imprime un dato dado su ID
     """
-    #TODO: Realizar la función para imprimir un elemento
-    pass
+    pedido = logic.buscar_pedido_por_id(control, id)
+
+    if pedido is None:
+        print(f"\nNo se encontró ningún pedido con Order_ID = {id}")
+        return
+
+    headers = ["Order_ID", "Product", "Country", "Channel", "Order_Date",
+               "Discount_Pct", "Price_per_Box", "Marketing_Spend",
+               "Boxes_Shipped", "Amount"]
+    fila = [pedido[campo] for campo in headers]
+
+    print(f"\nPedido encontrado (Order_ID = {id}):")
+    print(tabulate([fila], headers=headers, tablefmt="fancy_grid"))
 
 def extraer_campos_pedido(pedido):
     """

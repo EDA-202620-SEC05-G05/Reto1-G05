@@ -122,6 +122,26 @@ def get_first_last(orders):
 
     return lt.to_py_list(first_sub), lt.to_py_list(last_sub) 
 
+def buscar_pedido_por_id(catalog, order_id):
+    """
+    Busca en el catálogo el pedido cuyo Order_ID coincide con order_id.
+    Retorna el pedido (dict) si lo encuentra, o None si no existe.
+    """
+    pos = lt.is_present(catalog['orders'], order_id, comparar_id_pedido)
+    if pos == -1:
+        return None
+    return lt.get_element(catalog['orders'], pos)
+ 
+ 
+def comparar_id_pedido(order_id, pedido):
+    """
+    Función de comparación para is_present: compara un Order_ID (str/int)
+    contra un pedido (dict), ignorando diferencias de tipo (ej. "5" vs 5).
+    """
+    if str(pedido['Order_ID']) == str(order_id):
+        return 0
+    return 1
+
 # Funciones de consulta sobre el catálogo
 
 
