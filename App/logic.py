@@ -495,19 +495,175 @@ def es_mejor_monto(candidate, current_best):
         return candidate['Marketing_Spend'] < current_best['Marketing_Spend']
     return candidate['Order_ID'] < current_best['Order_ID']
 
-def req_5(catalog):
+def req_5(catalog, filtro, product, fecha_inicial, fecha_final):
     """
-    Retorna el resultado del requerimiento 5
+    Retorna el resultado del requerimiento 5: pedido de menor o mayor
+    Amount de un producto dado, dentro de un rango de fechas.
+    filtro debe ser "MENOR" o "MAYOR".
     """
-    # TODO: Modificar el requerimiento 5
-    pass
-
-def req_6(catalog):
+    start_time = get_time()
+ 
+    filtered = lt.new_list()
+    sum_price = 0.0
+    sum_boxes = 0.0
+    sum_marketing = 0.0
+ 
+    for i in range(lt.size(catalog['orders'])):
+        order = lt.get_element(catalog['orders'], i)
+        if order['Product'] != product:
+            continue
+        date = order['Order_Date']
+        if date == 'Unknown' or not (fecha_inicial <= date <= fecha_final):
+            continue
+        filtered = lt.add_last(filtered, order)
+        sum_price += order['Price_per_Box']
+        sum_boxes += order['Boxes_Shipped']
+        sum_marketing += order['Marketing_Spend']
+ 
+    total = lt.size(filtered)
+    avg_price = sum_price / total if total > 0 else 0
+    avg_boxes = sum_boxes / total if total > 0 else 0
+    avg_marketing = sum_marketing / total if total > 0 else 0
+ 
+    result_order = None
+    for i in range(total):
+        order = lt.get_element(filtered, i)
+        if order['Amount'] == 'Unknown':
+            continue
+        if result_order is None:
+            result_order = order
+            continue
+        if es_mejor_para_req5(order, result_order, filtro):
+            result_order = order
+ 
+    end_time = get_time()
+ 
+    return {
+        'time': delta_time(start_time, end_time),
+        'filtro': filtro,
+        'total': total,
+        'result_order': result_order,
+        'avg_price': avg_price,
+        'avg_boxes': avg_boxes,
+        'avg_marketing': avg_marketing,
+    }
+ 
+ 
+def es_mejor_para_req5(candidate, current_best, filtro):
     """
-    Retorna el resultado del requerimiento 6
+    Retorna True si 'candidate' reemplaza a 'current_best' según el
+    filtro MENOR/MAYOR. Empate -> menor Price_per_Box; empate ->
+    menor Marketing_Spend.
     """
-    # TODO: Modificar el requerimiento 6
-    pass
+    if candidate['Amount'] != current_best['Amount']:
+        if filtro == 'MENOR':
+            return candidate['Amount'] < current_best['Amount']
+        return candidate['Amount'] > current_best['Amount']
+    if candidate['Price_per_Box'] != current_best['Price_per_Box']:
+        return candidate['Price_per_Box'] < current_best['Price_per_Box']
+    return candidate['Marketing_Spend'] < current_best['Marketing_Spend']
+ 
+def req_6(catalog, fecha_inicial, fecha_final):
+    """
+    Retorna el resultado del requerimiento 6: canal más usado y canal
+    que más recauda, dentro de un rango de fechas, con estadísticas
+    por canal.
+    """
+    start_time = get_time()
+ 
+    channels = sll.new_list()  # una entrada (dict) por canal distinto
+    total_orders = 0
+ 
+    for i in range(lt.size(catalog['orders'])):
+        order = lt.get_element(catalog['orders'], i)
+        date = order['Order_Date']
+        if date == 'Unknown' or not (fecha_inicial <= date <= fecha_final):
+            continue
+ 
+        total_orders += 1
+        channel_name = order['Channel']
+        pos = sll.is_present(channels, channel_name, comparar_nombre_canal)
+ 
+        if pos == -1:
+            new_channel = crear_estadisticas_canal(order)
+            channels = sll.add_last(channels, new_channel)
+        else:
+            channel_stats = sll.get_element(channels, pos)
+            actualizar_estadisticas_canal(channel_stats, order)
+ 
+    channel_list = sll.to_py_list(channels)
+    calcular_promedios_canales(channel_list)
+ 
+    most_used = None
+    most_revenue = None
+    for channel_stats in channel_list:
+        if most_used is None or channel_stats['count'] > most_used['count']:
+            most_used = channel_stats
+        if most_revenue is None or channel_stats['total_amount'] > most_revenue['total_amount']:
+            most_revenue = channel_stats
+ 
+    end_time = get_time()
+ 
+    return {
+        'time': delta_time(start_time, end_time),
+        'total_orders': total_orders,
+        'most_used': most_used,
+        'most_revenue': most_revenue,
+        'channels': channel_list,
+    }
+ 
+ 
+def comparar_nombre_canal(name, channel_stats):
+    """
+    Función de comparación para is_present: compara un nombre de canal
+    (str) contra una entrada de estadísticas de canal (dict).
+    """
+    if name == channel_stats['Channel']:
+        return 0
+    return 1
+ 
+ 
+def crear_estadisticas_canal(order):
+    """
+    Crea el registro inicial de estadísticas para un canal, a partir
+    del primer pedido encontrado de ese canal.
+    """
+    return {
+        'Channel': order['Channel'],
+        'count': 1,
+        'total_amount': order['Amount'] if order['Amount'] != 'Unknown' else 0,
+        'sum_price': order['Price_per_Box'] if order['Price_per_Box'] != 'Unknown' else 0,
+        'sum_marketing': order['Marketing_Spend'] if order['Marketing_Spend'] != 'Unknown' else 0,
+        'cheapest': order,
+        'most_expensive': order,
+    }
+ 
+ 
+def actualizar_estadisticas_canal(channel_stats, order):
+    """
+    Actualiza las estadísticas de un canal con un nuevo pedido.
+    """
+    channel_stats['count'] += 1
+    if order['Amount'] != 'Unknown':
+        channel_stats['total_amount'] += order['Amount']
+        if order['Amount'] < channel_stats['cheapest']['Amount']:
+            channel_stats['cheapest'] = order
+        if order['Amount'] > channel_stats['most_expensive']['Amount']:
+            channel_stats['most_expensive'] = order
+    if order['Price_per_Box'] != 'Unknown':
+        channel_stats['sum_price'] += order['Price_per_Box']
+    if order['Marketing_Spend'] != 'Unknown':
+        channel_stats['sum_marketing'] += order['Marketing_Spend']
+ 
+ 
+def calcular_promedios_canales(channel_list):
+    """
+    Convierte las sumas acumuladas de cada canal en promedios finales.
+    """
+    for channel_stats in channel_list:
+        count = channel_stats['count']
+        channel_stats['avg_price'] = channel_stats['sum_price'] / count
+        channel_stats['avg_marketing'] = channel_stats['sum_marketing'] / count
 
 # Funciones para medir tiempos de ejecucion
 
