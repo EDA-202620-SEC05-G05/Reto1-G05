@@ -161,6 +161,10 @@ def print_req_2(control):
     headers = ["Product", "Country", "Channel", "Order_Date",
                "Price_per_Box", "Amount"]
 
+    if resultado['total'] == 0:
+        print("\nNo hay pedidos en ese rango de precio.")
+        return
+
     print("\nPedido más reciente del rango:")
     print(tabulate([extraer_campos_pedido(resultado['most_recent'])],
                     headers=headers, tablefmt="fancy_grid"))
@@ -222,8 +226,17 @@ def print_req_4(control):
         return [pedido['Order_ID'], pedido['Channel'], pedido['Order_Date'],
                 pedido['Boxes_Shipped'], pedido['Amount']]
 
+    filas = []
+    if resultado['top_1'] is not None:
+        filas.append(campos_req4(resultado['top_1']))
+    if resultado['top_2'] is not None:
+        filas.append(campos_req4(resultado['top_2']))
+
+    if not filas:
+        print("\nNo hay pedidos para esa combinación de Producto y País.")
+        return
+
     print("\nLos 2 pedidos de mayor Amount:")
-    filas = [campos_req4(resultado['top_1']), campos_req4(resultado['top_2'])]
     print(tabulate(filas, headers=headers, tablefmt="fancy_grid"))
 
 
@@ -241,6 +254,10 @@ def print_req_5(control):
     print(f"\nTiempo de ejecución: {resultado['time']:.2f} ms")
     print(f"Filtro seleccionado: {resultado['filtro']}")
     print(f"Cantidad de pedidos que cumplen el filtro: {resultado['total']}")
+
+    if resultado['total'] == 0:
+        print("\nNo hay pedidos de ese producto en ese rango de fechas.")
+        return
 
     pedido = resultado['result_order']
     headers = ["Price_per_Box", "Boxes_Shipped", "Amount",
@@ -267,6 +284,10 @@ def print_req_6(control):
 
     print(f"\nTiempo de ejecución: {resultado['time']:.2f} ms")
     print(f"Total de pedidos en el rango de fechas: {resultado['total_orders']}")
+
+    if resultado['total_orders'] == 0:
+        print("\nNo hay pedidos en ese rango de fechas.")
+        return
 
     canal_top_pedidos = resultado['most_used']
     print(f"\nCanal más usado: {canal_top_pedidos['Channel']} "
