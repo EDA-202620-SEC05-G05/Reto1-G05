@@ -22,7 +22,8 @@ def print_menu():
     print("4- Ejecutar Requerimiento 4")
     print("5- Ejecutar Requerimiento 5")
     print("6- Ejecutar Requerimiento 6")
-    print("7- Salir")
+    print("7- Buscar un pedido por su Order_ID")
+    print("8- Salir")
 
 def load_data(control):
     """
@@ -346,6 +347,10 @@ def main():
             print_req_6(control)
 
         elif int(inputs) == 7:
+            id_pedido = input("Ingrese el Order_ID a buscar: ")
+            print_data(control, id_pedido)
+
+        elif int(inputs) == 8:
             working = False
             print("\nGracias por utilizar el programa") 
         else:
