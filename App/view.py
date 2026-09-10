@@ -28,7 +28,7 @@ def load_data(control):
     """
     Carga los datos
     """
-    filename = "Data/chocolate_sales/chocolate_sale_100_elementos.csv"
+    filename = "Data/chocolate_sales/chocolate_sale_100_ptc.csv"
     result = logic.load_data(control, filename)
 
     print(f"\nTiempo de carga: {result['time']:.2f} ms")
